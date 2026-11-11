@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Basebot Challenge Board</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Orbitron:wght@600;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a1220;
+    --bg-2: #0f1c31;
+    --panel: #14253d;
+    --steel: #3b5272;
+    --steel-dim: #26384f;
+    --ink: #e8f1ff;
+    --ink-dim: #8ea3c0;
+    --points: #ffc247;
+    --cyan: #5ee7ff;
+    --red: #ff4d3d;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { height: 100%; background: var(--bg); overflow: hidden; }
+  body { display: grid; place-items: center; font-family: "Chakra Petch", "Segoe UI", system-ui, sans-serif; color: var(--ink); }
+  button { font-family: inherit; }
+  button:focus-visible { outline: .15em solid var(--points); outline-offset: .15em; }
+
+  /* 1em = 1% of the stage width, so the whole board scales to any 16:9 space */
+  .stage {
+    --u: min(100vw, 177.78vh);
+    font-size: calc(var(--u) / 100);
+    width: 100em; height: 56.25em; position: relative; overflow: hidden;
+    background:
+      linear-gradient(rgba(94,160,255,.05) 1px, transparent 1px) 0 0 / 2.5em 2.5em,
+      linear-gradient(90deg, rgba(94,160,255,.05) 1px, transparent 1px) 0 0 / 2.5em 2.5em,
+      radial-gradient(120% 90% at 50% 0%, var(--bg-2), var(--bg) 70%);
+  }
+
+  header.top {
+    height: 5em; padding: 0 2.4em; display: flex; align-items: center; justify-content: space-between;
+    border-bottom: .12em solid var(--steel-dim);
+    background: linear-gradient(180deg, rgba(20,37,61,.9), rgba(20,37,61,.3));
+  }
+  header.top h1 { font: 800 2em Orbitron, "Chakra Petch", sans-serif; letter-spacing: .06em; }
+  .status { display: flex; align-items: center; gap: 1.6em; font-size: 1.1em; color: var(--ink-dim); font-weight: 600; }
+  .clock { font: 800 1.5em Orbitron, sans-serif; color: var(--ink); font-variant-numeric: tabular-nums; }
+  .daybtn {
+    color: var(--ink); background: var(--panel); border: .1em solid var(--steel); padding: .3em .9em; cursor: pointer; font-weight: 600; font-size: 1em;
+    clip-path: polygon(.5em 0, 100% 0, 100% calc(100% - .5em), calc(100% - .5em) 100%, 0 100%, 0 .5em);
+  }
+  .live { display: flex; align-items: center; gap: .5em; }
+  .live i { width: .8em; height: .8em; border-radius: 50%; background: var(--steel); }
+  .live.ok i { background: var(--cyan); box-shadow: 0 0 .8em var(--cyan); }
+  .live.bad i { background: var(--points); box-shadow: 0 0 .8em var(--points); }
+
+  main { display: grid; grid-template-columns: 32em 1fr 23em; gap: 1.8em; padding: 1.6em 2.4em 0; height: 51.25em; }
+  .panel { min-height: 0; }
+
+  /* ---------- flowchart ---------- */
+  .flowpanel { --c: #a99bff; }
+  .chips { display: flex; gap: .6em; margin-bottom: 1em; }
+  .chip {
+    flex: 1; padding: .45em .5em; text-align: center; cursor: pointer; line-height: 1.15;
+    background: var(--panel); color: var(--ink-dim); border: 0; box-shadow: inset 0 0 0 .12em var(--steel-dim);
+    clip-path: polygon(.6em 0, 100% 0, 100% calc(100% - .6em), calc(100% - .6em) 100%, 0 100%, 0 .6em);
+  }
+  .chip b { display: block; font-size: 1.05em; font-weight: 700; }
+  .chip span { font-size: .85em; }
+  .chip.active { color: var(--ink); box-shadow: inset 0 0 0 .16em var(--cc); background: color-mix(in srgb, var(--cc) 18%, var(--panel)); }
+  .chip.pinned::after { content: "pinned"; display: block; font-size: .7em; color: var(--points); }
+
+  .col-head { display: flex; align-items: flex-end; justify-content: space-between; padding-bottom: .6em; border-bottom: .22em solid var(--c); margin-bottom: 1em; position: relative; }
+  .col-head::after { content: ""; position: absolute; left: 0; right: 0; bottom: -.22em; height: .22em; background: repeating-linear-gradient(90deg, transparent 0 1.2em, var(--bg) 1.2em 1.3em); }
+  .cname { font-size: 2.3em; font-weight: 700; line-height: 1; color: var(--c); }
+  .csum { text-align: right; font-size: 1.05em; color: var(--ink-dim); line-height: 1.2; }
+  .csum b { font: 800 1.5em Orbitron, sans-serif; color: var(--points); }
+
+  .row { display: flex; align-items: center; height: 6.6em; }
+  .gap { height: 2em; position: relative; }
+
+  .node {
+    position: relative; width: 17.5em; height: 100%; padding: .75em 1.1em; color: var(--ink-dim);
+    background: repeating-linear-gradient(135deg, rgba(255,255,255,.025) 0 .4em, transparent .4em .8em), var(--panel);
+    display: flex; flex-direction: column; justify-content: space-between;
+    clip-path: polygon(1em 0, 100% 0, 100% calc(100% - 1em), calc(100% - 1em) 100%, 0 100%, 0 1em);
+    box-shadow: inset 0 0 0 .14em var(--steel-dim);
+    transition: background .4s, color .4s, box-shadow .4s;
+  }
+  .node.small { width: 11em; }
+  .node .name { font-size: 1.6em; font-weight: 600; line-height: 1.05; }
+  .meta { display: flex; align-items: center; justify-content: space-between; gap: .5em; }
+  .pips { display: flex; gap: .2em; }
+  .pip { width: .85em; height: 1.3em; background: var(--steel-dim); display: block; }
+  .small .pip { width: .5em; height: 1em; }
+  .pip.on { background: var(--c); box-shadow: 0 0 .5em var(--c); }
+  .count { font: 800 1.35em Orbitron, sans-serif; color: var(--ink-dim); font-variant-numeric: tabular-nums; }
+  .state { font-size: 1em; font-weight: 600; display: flex; align-items: center; gap: .45em; }
+  .led { width: .75em; height: .75em; border-radius: 50%; background: var(--steel); }
+
+  .node.done {
+    color: var(--ink);
+    background: linear-gradient(135deg, color-mix(in srgb, var(--c) 34%, var(--panel)), var(--panel) 85%);
+    box-shadow: inset 0 0 0 .16em var(--c), inset 0 0 1.6em color-mix(in srgb, var(--c) 35%, transparent);
+  }
+  .node.done .led { background: var(--c); box-shadow: 0 0 .8em var(--c); }
+  .node.done .count { color: var(--points); }
+  .node.pop { animation: pop 1.4s ease-out 1; }
+  @keyframes pop { 0% { filter: brightness(2.4); transform: scale(1.04); } 100% { filter: none; transform: none; } }
+
+  .check { position: absolute; right: .9em; top: .5em; width: 2em; height: 2em; opacity: 0; transform: scale(.4); transition: opacity .25s, transform .4s cubic-bezier(.2,1.6,.4,1); }
+  .check path { fill: none; stroke: var(--c); stroke-width: 3.4; stroke-linecap: square; }
+  .node.done .check { opacity: 1; transform: scale(1); }
+
+  .vconn { position: absolute; left: 8.75em; width: .5em; height: 100%; margin-left: -.25em; background: var(--steel-dim); }
+  .hconn { width: 2em; height: .5em; background: var(--steel-dim); }
+  .vconn.lit, .hconn.lit {
+    background: repeating-linear-gradient(var(--dir, 0deg), var(--c) 0 .5em, color-mix(in srgb, var(--c) 25%, var(--bg)) .5em 1em);
+    background-size: 100% 1em; box-shadow: 0 0 .9em var(--c); animation: flow .9s linear infinite;
+  }
+  .hconn.lit { --dir: 90deg; background-size: 1em 100%; animation-name: flowx; }
+  @keyframes flow  { to { background-position: 0 -1em; } }
+  @keyframes flowx { to { background-position: 1em 0; } }
+
+  /* ---------- where do I ---------- */
+  .where { width: 100%; height: 100%; border-collapse: separate; border-spacing: 0 .5em; table-layout: fixed; }
+  .where th { font-size: 1.45em; font-weight: 700; text-align: center; padding: .1em .4em .3em; vertical-align: bottom; line-height: 1.05; }
+  .where th:first-child { width: 6.4em; }
+  .where th:nth-child(2) { width: 8.2em; }
+  .where th:nth-child(4) { width: 8em; }
+  .where td { --r: #7bdc9a; text-align: center; padding: .5em .7em; font-size: 1.22em; font-weight: 600; line-height: 1.2;
+    background: color-mix(in srgb, var(--r) 14%, var(--panel)); }
+  .where td.stage { font-size: 1.45em; font-weight: 700; color: var(--r); box-shadow: inset .35em 0 0 var(--r); }
+  .where tr.build { --r: #7bdc9a; } .where tr.test { --r: #a99bff; } .where tr.practice { --r: #ffcb4d; } .where tr.challenge { --r: #ff8aa0; }
+  .where td small { display: block; font-size: .8em; font-weight: 500; color: var(--ink-dim); }
+  .where .five { font: 800 2.1em Orbitron, sans-serif; color: var(--red); line-height: 1.05; text-shadow: 0 0 .5em rgba(255,77,61,.45); }
+  .where .gap2 { display: block; height: .5em; }
+
+  /* ---------- timer ---------- */
+  .timerpanel { display: flex; flex-direction: column; align-items: center; gap: 1.1em; }
+  .lights { display: flex; gap: 1em; padding: .7em 1.2em; background: var(--panel); box-shadow: inset 0 0 0 .12em var(--steel-dim);
+    clip-path: polygon(.8em 0, 100% 0, 100% calc(100% - .8em), calc(100% - .8em) 100%, 0 100%, 0 .8em); }
+  .lights i { width: 2.4em; height: 2.4em; border-radius: 50%; background: #2a1a1f; box-shadow: inset 0 0 0 .14em #4a2a31; transition: background .05s, box-shadow .05s; }
+  .lights i.on { background: var(--red); box-shadow: 0 0 1.2em var(--red), inset 0 0 0 .14em #ff8c80; }
+  .ringwrap { position: relative; width: 19em; height: 19em; }
+  .ringwrap svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+  .ring-bg { fill: none; stroke: var(--steel-dim); stroke-width: 7; }
+  .ring-fg { fill: none; stroke: var(--cyan); stroke-width: 7; stroke-linecap: butt; filter: drop-shadow(0 0 .35em var(--cyan)); transition: stroke .3s; }
+  .ringwrap.low .ring-fg { stroke: var(--points); filter: drop-shadow(0 0 .35em var(--points)); }
+  .ringwrap.done .ring-fg { stroke: var(--red); filter: drop-shadow(0 0 .35em var(--red)); }
+  .ringwrap.paused .ring-fg { opacity: .45; }
+  .readout { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; }
+  .digits { font: 800 3.7em Orbitron, sans-serif; font-variant-numeric: tabular-nums; line-height: 1; }
+  .ringwrap.low .digits { color: var(--points); }
+  .ringwrap.done .digits { color: var(--red); animation: blink .4s steps(2) infinite; }
+  @keyframes blink { 50% { opacity: .25; } }
+  .phase { margin-top: .5em; color: var(--ink-dim); font-weight: 600; font-size: 1.1em; }
+  .go {
+    width: 100%; height: 4.6em; font-size: 1.5em; font-weight: 700; color: #06131f; background: var(--cyan); border: 0; cursor: pointer;
+    clip-path: polygon(1em 0, 100% 0, 100% calc(100% - 1em), calc(100% - 1em) 100%, 0 100%, 0 1em);
+    transition: background .2s;
+  }
+  .go.running { background: var(--points); }
+  .go.starting { background: var(--red); color: #fff; }
+  .reset { display: none; color: var(--ink-dim); background: none; border: .1em solid var(--steel); padding: .3em 1.2em; font-size: 1.05em; cursor: pointer; }
+  .reset.show { display: block; }
+
+  /* ---------- day gate ---------- */
+  .gate { position: absolute; inset: 0; z-index: 10; display: grid; place-items: center; background: rgba(5,10,20,.92); }
+  .gate.hide { display: none; }
+  .gate .box { text-align: center; }
+  .gate h2 { font: 800 2.6em Orbitron, sans-serif; letter-spacing: .04em; margin-bottom: 1em; }
+  .gate .opts { display: flex; gap: 2em; justify-content: center; }
+  .gate button {
+    width: 17em; height: 7em; font-size: 1.7em; font-weight: 700; color: var(--ink); cursor: pointer;
+    background: var(--panel); border: 0; box-shadow: inset 0 0 0 .14em var(--cyan);
+    clip-path: polygon(1em 0, 100% 0, 100% calc(100% - 1em), calc(100% - 1em) 100%, 0 100%, 0 1em);
+  }
+  .gate button:hover { background: color-mix(in srgb, var(--cyan) 22%, var(--panel)); }
+  .gate button small { display: block; font-size: .55em; color: var(--ink-dim); font-weight: 500; margin-top: .4em; }
+
+  @media (prefers-reduced-motion: reduce) { .vconn.lit, .hconn.lit, .node.pop, .ringwrap.done .digits { animation: none; } }
+</style>
+</head>
+<body>
+<div class="stage">
+  <header class="top">
+    <h1>Basebot challenge board</h1>
+    <div class="status">
+      <span class="live" id="live"><i></i><span id="liveText">Connecting</span></span>
+      <button class="daybtn" id="dayBtn">Normal day</button>
+      <span class="clock" id="clock">--:--</span>
+    </div>
+  </header>
+
+  <main>
+    <section class="panel flowpanel" id="flow"></section>
+
+    <section class="panel">
+      <table class="where">
+        <thead><tr><th></th><th>Where do I?</th><th>What do I do?</th><th>How long should it take?</th></tr></thead>
+        <tbody>
+          <tr class="build"><td class="stage">Build</td><td>At Your Table</td><td>Design and build attachments for your robot to complete challenges</td><td>As long as you need</td></tr>
+          <tr class="test"><td class="stage">Test</td><td>Hallway<small>(Away From Other Groups)</small></td><td>Test what I built to see if it works</td><td><span class="five">5 minutes</span></td></tr>
+          <tr class="practice"><td class="stage">Practice</td><td>Arena</td><td>Try to get 3 blocks into the safe zone in under 2 minutes</td><td>As long as you need<span class="gap2"></span>2 minutes if anyone is waiting</td></tr>
+          <tr class="challenge"><td class="stage">Challenge</td><td>Arena</td><td>Try to get 3 blocks into the safe zone in under 2 minutes</td><td>2 minutes or less</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="panel timerpanel">
+      <div class="lights" id="lights"><i></i><i></i><i></i><i></i></div>
+      <div class="ringwrap" id="ringwrap">
+        <svg viewBox="0 0 100 100" aria-hidden="true">
+          <circle class="ring-bg" cx="50" cy="50" r="44"/>
+          <circle class="ring-fg" id="ringfg" cx="50" cy="50" r="44" pathLength="100" stroke-dasharray="100" stroke-dashoffset="0"/>
+        </svg>
+        <div class="readout"><div class="digits" id="digits">2:00</div><div class="phase" id="phase">Ready</div></div>
+      </div>
+      <button class="go" id="go">Start</button>
+      <button class="reset" id="resetBtn">Reset to 2:00</button>
+    </section>
+  </main>
+
+  <div class="gate" id="gate">
+    <div class="box">
+      <h2>What kind of day is it?</h2>
+      <div class="opts">
+        <button data-day="normal">Normal day<small>Full class periods</small></button>
+        <button data-day="early">Early dismissal<small>Shortened periods</small></button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ================= SETTINGS ================= */
+const SHEET_ID  = "1KF3vXMmO3N5adfTs9z9EOO1JEMKyGA5wdxGudCV43DA";
+const THRESHOLD = 10;       // checkmarks needed to complete a stage
+const POLL_MS   = 10000;    // how often to re-read the sheet
+const SOUND     = "points.mp3";
+const TIMER_MS  = 2 * 60 * 1000;
+
+// "tab" must match the tab name in the spreadsheet exactly
+const CLASSES = [
+  { id: "tyrakowski", name: "Tyrakowski", tab: "Tyrakowski", color: "#a99bff" },
+  { id: "josefowicz", name: "Josefowicz", tab: "Josefowicz", color: "#ff8aa0" },
+  { id: "friedman",   name: "Friedman",   tab: "Friedman",   color: "#ffcb4d" }
+];
+const t = s => { const [h, m] = s.split(":").map(Number); return h * 60 + m; };
+const SCHEDULES = {
+  normal: { tyrakowski: [t("8:05"), t("8:45")], josefowicz: [t("9:35"), t("10:15")], friedman: [t("10:15"), t("10:55")] },
+  early:  { tyrakowski: [t("8:05"), t("8:35")], josefowicz: [t("9:15"), t("9:45")],  friedman: [t("9:45"),  t("10:15")] }
+};
+// Sheet columns: B, C, D, E (and an optional "Side Quest" column F)
+const STEPS = [
+  { id: "finish", name: "Finish Basebot", re: /finish/i,        col: 1 },
+  { id: "c1",     name: "Challenge 1",    re: /challenge\s*1/i, col: 2 },
+  { id: "c2",     name: "Challenge 2",    re: /challenge\s*2/i, col: 3 },
+  { id: "c3",     name: "Challenge 3",    re: /challenge\s*3/i, col: 4 },
+  { id: "side",   name: "Side Quest",     re: /side/i,          col: 5, small: true }
+];
+
+/* ================= STATE ================= */
+let day = null;                    // "normal" | "early"
+let pinned = null;                 // class id chosen by hand, or null for automatic
+let data = {};                     // class id -> { counts, done, hasSide, loaded }
+let fresh = new Set();             // steps that just completed (for the flash)
+let shownClass = null;
+const params = new URLSearchParams(location.search);
+let timeOffset = 0;
+if (params.get("time")) timeOffset = t(params.get("time")) * 60000 - (Date.now() - new Date().setHours(0,0,0,0));
+const nowDate = () => new Date(Date.now() + timeOffset);
+const minsNow = () => { const d = nowDate(); return d.getHours() * 60 + d.getMinutes() + d.getSeconds() / 60; };
+
+function autoClass() {
+  const sch = SCHEDULES[day || "normal"], m = minsNow();
+  for (const c of CLASSES) if (m < sch[c.id][1]) return c.id;   // in session, or next up
+  return CLASSES[CLASSES.length - 1].id;                          // after the last class
+}
+const currentId = () => pinned || autoClass();
+const fmt = m => { const h = Math.floor(m / 60), mm = String(m % 60).padStart(2, "0"); return `${h > 12 ? h - 12 : h}:${mm}`; };
+
+/* ================= AUDIO ================= */
+const pointsAudio = new Audio(SOUND);
+pointsAudio.preload = "auto";
+let actx = null;
+function ctx() { if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)(); if (actx.state === "suspended") actx.resume(); return actx; }
+function unlockAudio() {          // runs on the first click so later sounds are allowed to play
+  ctx();
+  pointsAudio.muted = true;
+  pointsAudio.play().then(() => { pointsAudio.pause(); pointsAudio.currentTime = 0; pointsAudio.muted = false; }).catch(() => { pointsAudio.muted = false; });
+}
+function playPoints() { pointsAudio.currentTime = 0; pointsAudio.play().catch(() => {}); }
+function beep(freq, at, dur, vol = .3, type = "square") {
+  const c = ctx(), o = c.createOscillator(), g = c.createGain();
+  o.type = type; o.frequency.value = freq;
+  g.gain.setValueAtTime(0, at); g.gain.linearRampToValueAtTime(vol, at + .01);
+  g.gain.setValueAtTime(vol, at + dur - .02); g.gain.linearRampToValueAtTime(0, at + dur);
+  o.connect(g).connect(c.destination); o.start(at); o.stop(at + dur + .02);
+}
+
+/* ================= SHEET ================= */
+let seq = 0;
+function fetchTab(c) {
+  return new Promise(resolve => {
+    const fn = `__gv${++seq}`, s = document.createElement("script");
+    let finished = false;
+    const end = v => { if (finished) return; finished = true; clearTimeout(timer); delete window[fn]; s.remove(); resolve(v); };
+    const timer = setTimeout(() => end(null), 9000);
+    window[fn] = r => end(r);
+    s.onerror = () => end(null);
+    s.src = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=${encodeURIComponent("out:json;responseHandler:" + fn)}` +
+            `&sheet=${encodeURIComponent(c.tab)}&headers=1&_=${Date.now()}`;
+    document.head.appendChild(s);
+  });
+}
+const ticked = cell => {
+  if (!cell || cell.v == null) return false;
+  if (cell.v === true) return true;
+  return typeof cell.v === "string" && /^(true|✓|✔|x|yes|y)$/i.test(cell.v.trim());
+};
+function parse(r) {
+  if (!r || r.status !== "ok" || !r.table) return null;
+  const cols = r.table.cols, rows = r.table.rows || [];
+  const counts = {}; let hasSide = false;
+  STEPS.forEach(st => {
+    let idx = cols.findIndex((col, i) => i > 0 && st.re.test(col.label || ""));
+    if (idx < 0 && st.id !== "side") idx = st.col;
+    if (idx < 0 || idx >= cols.length) { counts[st.id] = 0; return; }
+    if (st.id === "side") hasSide = true;
+    counts[st.id] = rows.filter(row => ticked(row.c && row.c[idx])).length;
+  });
+  const done = {};
+  STEPS.forEach(st => done[st.id] = st.id === "side" && !hasSide ? !!(counts.c3 >= THRESHOLD) : counts[st.id] >= THRESHOLD);
+  return { counts, done, hasSide, loaded: true };
+}
+
+async function poll() {
+  const results = await Promise.all(CLASSES.map(fetchTab));
+  const live = document.getElementById("live");
+  let ok = 0, anyNew = false;
+  const showing = currentId();
+  fresh = new Set();
+  CLASSES.forEach((c, i) => {
+    const next = parse(results[i]);
+    if (!next) return;
+    ok++;
+    const prev = data[c.id];
+    if (prev && prev.loaded && c.id === showing) {
+      STEPS.forEach(st => { if (!prev.done[st.id] && next.done[st.id]) { anyNew = true; fresh.add(st.id); } });
+    }
+    data[c.id] = next;
+  });
+  live.className = "live " + (ok ? "ok" : "bad");
+  document.getElementById("liveText").textContent = ok
+    ? "Live · " + nowDate().toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" })
+    : "Can't read the sheet";
+  render();
+  if (anyNew) playPoints();
+}
+
+/* ================= FLOWCHART ================= */
+const CHECK = '<svg class="check" viewBox="0 0 32 32" aria-hidden="true"><path d="M5 17 L13 25 L28 7"/></svg>';
+function node(st, d) {
+  const done = d && d.done[st.id];
+  const n = d ? d.counts[st.id] || 0 : 0;
+  const showPips = st.id !== "side" || (d && d.hasSide);
+  const pips = showPips ? `<div class="pips">${Array.from({ length: THRESHOLD }, (_, i) => `<i class="pip ${i < n ? "on" : ""}"></i>`).join("")}</div>` : "";
+  const label = !d ? "Loading" : done ? "Complete" : (st.id === "side" && !d.hasSide) ? "After Challenge 3" : n ? "In progress" : "Not started";
+  return `<div class="node ${st.small ? "small" : ""} ${done ? "done" : ""} ${fresh.has(st.id) ? "pop" : ""}">
+    ${CHECK}
+    <div class="name">${st.name}</div>
+    <div class="meta">
+      ${showPips ? pips : `<div class="state"><i class="led"></i>${label}</div>`}
+      ${showPips && !st.small ? `<span class="count">${n}/${THRESHOLD}</span>` : ""}
+    </div>
+  </div>`;
+}
+function render() {
+  const sch = SCHEDULES[day || "normal"];
+  const cur = currentId();
+  const c = CLASSES.find(x => x.id === cur), d = data[cur];
+  shownClass = cur;
+  const lit = id => d && d.done[id];
+  const completed = d ? STEPS.filter(st => st.id !== "side" && d.done[st.id]).length : 0;
+  document.getElementById("dayBtn").textContent = day === "early" ? "Early dismissal" : "Normal day";
+  const flow = document.getElementById("flow");
+  flow.style.setProperty("--c", c.color);
+  flow.innerHTML = `
+    <div class="chips">${CLASSES.map(x => `<button class="chip ${x.id === cur ? "active" : ""} ${pinned === x.id ? "pinned" : ""}" data-id="${x.id}" style="--cc:${x.color}">
+      <b>${x.name}</b><span>${fmt(sch[x.id][0])}–${fmt(sch[x.id][1])}</span></button>`).join("")}</div>
+    <div class="col-head"><div class="cname">${c.name}</div><div class="csum"><b>${completed}</b> of 4<br>stages complete</div></div>
+    <div class="flow">
+      <div class="row">${node(STEPS[3], d)}<div class="hconn ${lit("c3") ? "lit" : ""}"></div>${node(STEPS[4], d)}</div>
+      <div class="gap"><div class="vconn ${lit("c2") ? "lit" : ""}"></div></div>
+      <div class="row">${node(STEPS[2], d)}</div>
+      <div class="gap"><div class="vconn ${lit("c1") ? "lit" : ""}"></div></div>
+      <div class="row">${node(STEPS[1], d)}</div>
+      <div class="gap"><div class="vconn ${lit("finish") ? "lit" : ""}"></div></div>
+      <div class="row">${node(STEPS[0], d)}</div>
+    </div>`;
+  fresh = new Set();
+}
+document.getElementById("flow").addEventListener("click", e => {
+  const chip = e.target.closest(".chip"); if (!chip) return;
+  pinned = pinned === chip.dataset.id ? null : chip.dataset.id;   // click again to go back to automatic
+  render();
+});
+
+/* ================= HEADER + DAY GATE ================= */
+const gate = document.getElementById("gate");
+gate.addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  unlockAudio();
+  day = b.dataset.day; pinned = null;
+  gate.classList.add("hide");
+  render();
+});
+document.getElementById("dayBtn").addEventListener("click", () => gate.classList.remove("hide"));
+function tick() {
+  document.getElementById("clock").textContent = nowDate().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  if (day && !pinned && autoClass() !== shownClass) render();
+}
+
+/* ================= TIMER ================= */
+const $ = id => document.getElementById(id);
+const goBtn = $("go"), digits = $("digits"), phase = $("phase"), wrap = $("ringwrap"), ringfg = $("ringfg"), resetBtn = $("resetBtn");
+const lightEls = [...$("lights").children];
+let tState = "idle", remaining = TIMER_MS, endAt = 0, tInt = null, timeouts = [];
+
+function show() {
+  const secs = Math.ceil(remaining / 1000), m = Math.floor(secs / 60), s = String(secs % 60).padStart(2, "0");
+  digits.textContent = `${m}:${s}`;
+  ringfg.setAttribute("stroke-dashoffset", String(100 * (1 - remaining / TIMER_MS)));
+  wrap.classList.toggle("low", tState === "running" && remaining <= 10000);
+  wrap.classList.toggle("paused", tState === "paused");
+  wrap.classList.toggle("done", tState === "done");
+}
+function setUI() {
+  const map = {
+    idle:     ["Start",  "Ready",       ""],
+    starting: ["Cancel", "Get ready",   "starting"],
+    running:  ["Pause",  "Counting down", "running"],
+    paused:   ["Resume", "Paused",      ""],
+    done:     ["Start",  "Time",        ""]
+  }[tState];
+  goBtn.textContent = map[0]; phase.textContent = map[1]; goBtn.className = "go " + map[2];
+  resetBtn.classList.toggle("show", tState === "paused");
+  show();
+}
+const lights = n => lightEls.forEach((el, i) => el.classList.toggle("on", i < n));
+const later = (fn, ms) => timeouts.push(setTimeout(fn, ms));
+function clearAll() { timeouts.forEach(clearTimeout); timeouts = []; clearInterval(tInt); }
+
+function startSequence() {              // four F1-style start beeps, then lights out and the clock runs
+  tState = "starting"; remaining = TIMER_MS; setUI();
+  const c = ctx(), t0 = c.currentTime + .08, gapS = .9;
+  for (let i = 0; i < 4; i++) { beep(880, t0 + i * gapS, .4, .32, "square"); later(() => lights(i + 1), 80 + i * gapS * 1000); }
+  later(() => { lights(0); run(); }, 80 + 3 * gapS * 1000 + 900);
+}
+function run() {
+  tState = "running"; endAt = performance.now() + remaining; setUI();
+  clearInterval(tInt);
+  tInt = setInterval(() => {
+    remaining = Math.max(0, endAt - performance.now());
+    show();
+    if (remaining <= 0) finish();
+  }, 100);
+}
+function finish() {
+  clearInterval(tInt); tState = "done"; remaining = 0; setUI();
+  const c = ctx(), t0 = c.currentTime + .05;
+  for (let i = 0; i < 6; i++) beep(1400, t0 + i * .3, .18, .35, "square");
+  later(resetTimer, 2400);
+}
+function resetTimer() { clearAll(); lights(0); tState = "idle"; remaining = TIMER_MS; setUI(); }
+
+goBtn.addEventListener("click", () => {
+  ctx();
+  if (tState === "idle") startSequence();
+  else if (tState === "starting") resetTimer();
+  else if (tState === "running") { clearInterval(tInt); remaining = Math.max(0, endAt - performance.now()); tState = "paused"; setUI(); }
+  else if (tState === "paused") run();
+  else if (tState === "done") resetTimer();
+});
+resetBtn.addEventListener("click", resetTimer);
+
+/* ================= GO ================= */
+setUI();
+render();
+tick(); setInterval(tick, 1000);
+poll(); setInterval(poll, POLL_MS);
+</script>
+</body>
+</html>
