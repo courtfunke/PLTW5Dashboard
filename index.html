@@ -134,7 +134,7 @@
   .wrow:not(.head) > .lbl { font-size: 1.25em; padding-left: .8em; font-weight: 700; color: var(--r); box-shadow: inset .35em 0 0 var(--r); }
   .wrow.build { --r: #7bdc9a; } .wrow.test { --r: #a99bff; } .wrow.practice { --r: #ffcb4d; } .wrow.challenge { --r: #ff8aa0; }
   .wrow small { display: block; font-size: .8em; font-weight: 500; color: var(--ink-dim); margin-top: .2em; }
-  .wrow .five { font: 800 1.7em Orbitron, sans-serif; color: var(--red); line-height: 1.05; text-shadow: 0 0 .5em rgba(255,77,61,.45); }
+  .wrow .five { font: 800 1.1em Orbitron, sans-serif; letter-spacing: -.02em; overflow-wrap: anywhere; color: var(--red); line-height: 1.05; text-shadow: 0 0 .5em rgba(255,77,61,.45); }
   .wrow .gap2 { display: block; height: .7em; }
 
   /* ---------- timer ---------- */
@@ -239,6 +239,8 @@ const THRESHOLD = 10;       // checkmarks needed to complete a stage
 const POLL_MS   = 10000;    // how often to re-read the sheet
 const SOUND     = "points.mp3";
 const TIMER_MS  = 2 * 60 * 1000;
+const START_LOW_HZ  = 880;   // beeps 1-3
+const START_HIGH_HZ = 1760;  // beep 4 (higher, like the F1 start)
 
 // "tab" must match the tab name in the spreadsheet exactly
 const CLASSES = [
@@ -455,7 +457,7 @@ function clearAll() { timeouts.forEach(clearTimeout); timeouts = []; clearInterv
 function startSequence() {              // four F1-style start beeps, then lights out and the clock runs
   tState = "starting"; remaining = TIMER_MS; setUI();
   const c = ctx(), t0 = c.currentTime + .08, gapS = .9;
-  for (let i = 0; i < 4; i++) { beep(880, t0 + i * gapS, .4, .32, "square"); later(() => lights(i + 1), 80 + i * gapS * 1000); }
+  for (let i = 0; i < 4; i++) { beep(i === 3 ? START_HIGH_HZ : START_LOW_HZ, t0 + i * gapS, i === 3 ? .6 : .4, .32, "square"); later(() => lights(i + 1), 80 + i * gapS * 1000); }
   later(() => { lights(0); run(); }, 80 + 3 * gapS * 1000 + 900);
 }
 function run() {
