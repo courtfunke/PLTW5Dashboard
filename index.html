@@ -123,18 +123,19 @@
   @keyframes flowx { to { background-position: 1em 0; } }
 
   /* ---------- where do I ---------- */
-  .where { width: 100%; height: 100%; border-collapse: separate; border-spacing: 0 .5em; table-layout: fixed; }
-  .where th { font-size: 1.45em; font-weight: 700; text-align: center; padding: .1em .4em .3em; vertical-align: bottom; line-height: 1.05; }
-  .where th:first-child { width: 6.4em; }
-  .where th:nth-child(2) { width: 8.2em; }
-  .where th:nth-child(4) { width: 8em; }
-  .where td { --r: #7bdc9a; text-align: center; padding: .5em .7em; font-size: 1.22em; font-weight: 600; line-height: 1.2;
-    background: color-mix(in srgb, var(--r) 14%, var(--panel)); }
-  .where td.stage { font-size: 1.45em; font-weight: 700; color: var(--r); box-shadow: inset .35em 0 0 var(--r); }
-  .where tr.build { --r: #7bdc9a; } .where tr.test { --r: #a99bff; } .where tr.practice { --r: #ffcb4d; } .where tr.challenge { --r: #ff8aa0; }
-  .where td small { display: block; font-size: .8em; font-weight: 500; color: var(--ink-dim); }
-  .where .five { font: 800 2.1em Orbitron, sans-serif; color: var(--red); line-height: 1.05; text-shadow: 0 0 .5em rgba(255,77,61,.45); }
-  .where .gap2 { display: block; height: .5em; }
+  .where { --cols: 8.2em 7.6em 1fr 8.2em; height: 100%; display: grid; grid-template-rows: auto repeat(4, 1fr); gap: .6em; }
+  .wrow { display: grid; grid-template-columns: var(--cols); gap: .5em; --r: #7bdc9a; }
+  .wrow.head > div { font-size: 1.4em; font-weight: 700; text-align: center; line-height: 1.05; align-self: end; padding-bottom: .15em; }
+  .wrow:not(.head) > div {
+    display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
+    padding: .5em .6em; font-size: 1.2em; font-weight: 600; line-height: 1.2;
+    background: color-mix(in srgb, var(--r) 14%, var(--panel));
+  }
+  .wrow:not(.head) > .lbl { font-size: 1.25em; padding-left: .8em; font-weight: 700; color: var(--r); box-shadow: inset .35em 0 0 var(--r); }
+  .wrow.build { --r: #7bdc9a; } .wrow.test { --r: #a99bff; } .wrow.practice { --r: #ffcb4d; } .wrow.challenge { --r: #ff8aa0; }
+  .wrow small { display: block; font-size: .8em; font-weight: 500; color: var(--ink-dim); margin-top: .2em; }
+  .wrow .five { font: 800 1.7em Orbitron, sans-serif; color: var(--red); line-height: 1.05; text-shadow: 0 0 .5em rgba(255,77,61,.45); }
+  .wrow .gap2 { display: block; height: .7em; }
 
   /* ---------- timer ---------- */
   .timerpanel { display: flex; flex-direction: column; align-items: center; gap: 1.1em; }
@@ -197,15 +198,13 @@
     <section class="panel flowpanel" id="flow"></section>
 
     <section class="panel">
-      <table class="where">
-        <thead><tr><th></th><th>Where do I?</th><th>What do I do?</th><th>How long should it take?</th></tr></thead>
-        <tbody>
-          <tr class="build"><td class="stage">Build</td><td>At Your Table</td><td>Design and build attachments for your robot to complete challenges</td><td>As long as you need</td></tr>
-          <tr class="test"><td class="stage">Test</td><td>Hallway<small>(Away From Other Groups)</small></td><td>Test what I built to see if it works</td><td><span class="five">5 minutes</span></td></tr>
-          <tr class="practice"><td class="stage">Practice</td><td>Arena</td><td>Try to get 3 blocks into the safe zone in under 2 minutes</td><td>As long as you need<span class="gap2"></span>2 minutes if anyone is waiting</td></tr>
-          <tr class="challenge"><td class="stage">Challenge</td><td>Arena</td><td>Try to get 3 blocks into the safe zone in under 2 minutes</td><td>2 minutes or less</td></tr>
-        </tbody>
-      </table>
+      <div class="where">
+        <div class="wrow head"><div></div><div>Where do I?</div><div>What do I do?</div><div>How long should it take?</div></div>
+        <div class="wrow build"><div class="lbl">Build</div><div>At Your Table</div><div>Design and build attachments for your robot to complete challenges</div><div>As long as you need</div></div>
+        <div class="wrow test"><div class="lbl">Test</div><div>Hallway<small>(Away From Other Groups)</small></div><div>Test what I built to see if it works</div><div><span class="five">5 minutes</span></div></div>
+        <div class="wrow practice"><div class="lbl">Practice</div><div>Arena</div><div>Try to get 3 blocks into the safe zone in under 2 minutes</div><div>As long as you need<span class="gap2"></span>2 minutes if anyone is waiting</div></div>
+        <div class="wrow challenge"><div class="lbl">Challenge</div><div>Arena</div><div>Try to get 3 blocks into the safe zone in under 2 minutes</div><div>2 minutes or less</div></div>
+      </div>
     </section>
 
     <section class="panel timerpanel">
