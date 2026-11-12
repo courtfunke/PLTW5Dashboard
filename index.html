@@ -19,6 +19,7 @@
     --points: #ffc247;
     --cyan: #5ee7ff;
     --red: #ff4d3d;
+    --green: #4dff88;
   }
   * { box-sizing: border-box; margin: 0; }
   html, body { height: 100%; background: var(--bg); overflow: hidden; overscroll-behavior: none; touch-action: manipulation; }
@@ -167,6 +168,16 @@
   .reset { display: none; color: var(--ink-dim); background: none; border: .1em solid var(--steel); padding: .3em 1.2em; font-size: 1.05em; cursor: pointer; }
   .reset.show { display: block; }
 
+  /* ---------- challenge window light ---------- */
+  .window {
+    width: 100%; display: flex; align-items: center; justify-content: center; gap: .8em;
+    padding: .9em 1em; font-size: 1.5em; font-weight: 700; color: var(--ink);
+    background: var(--panel); box-shadow: inset 0 0 0 .12em var(--steel-dim);
+    clip-path: polygon(.8em 0, 100% 0, 100% calc(100% - .8em), calc(100% - .8em) 100%, 0 100%, 0 .8em);
+  }
+  .window i { width: 2.4em; height: 2.4em; border-radius: 50%; flex: none; background: var(--red); box-shadow: 0 0 1em var(--red), inset 0 0 0 .12em #ff8c80; transition: background .3s, box-shadow .3s; }
+  .window.open i { background: var(--green); box-shadow: 0 0 1em var(--green), inset 0 0 0 .12em #b6ffcf; }
+
   /* ---------- day gate ---------- */
   .gate { position: absolute; inset: 0; z-index: 10; display: grid; place-items: center; background: rgba(5,10,20,.92); }
   .gate.hide { display: none; }
@@ -219,6 +230,7 @@
         <div class="readout"><div class="digits" id="digits">2:00</div><div class="phase" id="phase">Ready</div></div>
       </div>
       <button class="go" id="go">Start</button>
+      <div class="window" id="window"><i></i><span id="windowText">Challenge window closed</span></div>
       <button class="reset" id="resetBtn">Reset to 2:00</button>
     </section>
   </main>
@@ -411,6 +423,19 @@ document.getElementById("flow").addEventListener("click", e => {
   render();
 });
 
+/* ================= CHALLENGE WINDOW ================= */
+// minutes since midnight: [open, close)
+const WINDOWS = {
+  normal: [[495, 520], [585, 610], [625, 650]],   // 8:15-8:40, 9:45-10:10, 10:25-10:50
+  early:  [[495, 510], [565, 580], [595, 610]]    // 8:15-8:30, 9:25-9:40, 9:55-10:10
+};
+function updateWindow() {
+  const m = minsNow();
+  const open = WINDOWS[day || "normal"].some(([a, b]) => m >= a && m < b);
+  document.getElementById("window").classList.toggle("open", open);
+  document.getElementById("windowText").textContent = open ? "Challenge window open" : "Challenge window closed";
+}
+
 /* ================= HEADER + DAY GATE ================= */
 const gate = document.getElementById("gate");
 gate.addEventListener("click", e => {
@@ -419,11 +444,13 @@ gate.addEventListener("click", e => {
   day = b.dataset.day; pinned = null;
   gate.classList.add("hide");
   render();
+  updateWindow();
 });
 document.getElementById("dayBtn").addEventListener("click", () => gate.classList.remove("hide"));
 function tick() {
   document.getElementById("clock").textContent = nowDate().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
   if (day && !pinned && autoClass() !== shownClass) render();
+  updateWindow();
 }
 
 /* ================= TIMER ================= */
