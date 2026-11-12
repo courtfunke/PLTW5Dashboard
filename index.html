@@ -253,8 +253,8 @@ const THRESHOLD = 10;       // checkmarks needed to complete a stage
 const POLL_MS   = 10000;    // how often to re-read the sheet
 const SOUND     = "points.mp3";
 const TIMER_MS  = 2 * 60 * 1000;
-const START_LOW_HZ  = 880;   // beeps 1-3
-const START_HIGH_HZ = 1760;  // beep 4 (higher, like the F1 start)
+const START_LOW_HZ  = 660;   // beeps 1-3
+const START_HIGH_HZ = 1320;  // beep 4 (higher, like the F1 start)
 
 // "tab" must match the tab name in the spreadsheet exactly
 const CLASSES = [
@@ -307,11 +307,11 @@ function unlockAudio() {          // runs on the first click so later sounds are
   pointsAudio.play().then(() => { pointsAudio.pause(); pointsAudio.currentTime = 0; pointsAudio.muted = false; }).catch(() => { pointsAudio.muted = false; });
 }
 function playPoints() { pointsAudio.currentTime = 0; pointsAudio.play().catch(() => {}); }
-function beep(freq, at, dur, vol = .3, type = "square") {
+function beep(freq, at, dur, vol = .12, type = "sine") {
   const c = ctx(), o = c.createOscillator(), g = c.createGain();
   o.type = type; o.frequency.value = freq;
-  g.gain.setValueAtTime(0, at); g.gain.linearRampToValueAtTime(vol, at + .01);
-  g.gain.setValueAtTime(vol, at + dur - .02); g.gain.linearRampToValueAtTime(0, at + dur);
+  g.gain.setValueAtTime(0, at); g.gain.linearRampToValueAtTime(vol, at + .04);
+  g.gain.setValueAtTime(vol, at + dur - .08); g.gain.linearRampToValueAtTime(0, at + dur);
   o.connect(g).connect(c.destination); o.start(at); o.stop(at + dur + .02);
 }
 
@@ -486,7 +486,7 @@ function clearAll() { timeouts.forEach(clearTimeout); timeouts = []; clearInterv
 function startSequence() {              // four F1-style start beeps, then lights out and the clock runs
   tState = "starting"; remaining = TIMER_MS; setUI();
   const c = ctx(), t0 = c.currentTime + .08, gapS = .9;
-  for (let i = 0; i < 4; i++) { beep(i === 3 ? START_HIGH_HZ : START_LOW_HZ, t0 + i * gapS, i === 3 ? .6 : .4, .32, "square"); later(() => lights(i + 1), 80 + i * gapS * 1000); }
+  for (let i = 0; i < 4; i++) { beep(i === 3 ? START_HIGH_HZ : START_LOW_HZ, t0 + i * gapS, i === 3 ? .6 : .4, .14, "sine"); later(() => lights(i + 1), 80 + i * gapS * 1000); }
   later(() => { lights(0); run(); }, 80 + 3 * gapS * 1000 + 900);
 }
 function run() {
@@ -501,7 +501,7 @@ function run() {
 function finish() {
   clearInterval(tInt); tState = "done"; remaining = 0; setUI();
   const c = ctx(), t0 = c.currentTime + .05;
-  for (let i = 0; i < 6; i++) beep(1400, t0 + i * .3, .18, .35, "square");
+  for (let i = 0; i < 6; i++) beep(1000, t0 + i * .3, .2, .16, "sine");
   later(resetTimer, 2400);
 }
 function resetTimer() { clearAll(); lights(0); tState = "idle"; remaining = TIMER_MS; setUI(); }
