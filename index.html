@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <title>Basebot Challenge Board</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -21,14 +21,15 @@
     --red: #ff4d3d;
   }
   * { box-sizing: border-box; margin: 0; }
-  html, body { height: 100%; background: var(--bg); overflow: hidden; }
+  html, body { height: 100%; background: var(--bg); overflow: hidden; overscroll-behavior: none; touch-action: manipulation; }
+  body { position: fixed; inset: 0; }
   body { display: grid; place-items: center; font-family: "Chakra Petch", "Segoe UI", system-ui, sans-serif; color: var(--ink); }
   button { font-family: inherit; }
   button:focus-visible { outline: .15em solid var(--points); outline-offset: .15em; }
 
   /* 1em = 1% of the stage width, so the whole board scales to any 16:9 space */
   .stage {
-    --u: min(100vw, 177.78vh);
+    --u: min(100vw, 177.78vh); /* JS below replaces this with the exact window size */
     font-size: calc(var(--u) / 100);
     width: 100em; height: 56.25em; position: relative; overflow: hidden;
     background:
@@ -54,7 +55,7 @@
   .live.ok i { background: var(--cyan); box-shadow: 0 0 .8em var(--cyan); }
   .live.bad i { background: var(--points); box-shadow: 0 0 .8em var(--points); }
 
-  main { display: grid; grid-template-columns: 32em 1fr 23em; gap: 1.8em; padding: 1.6em 2.4em 0; height: 51.25em; }
+  main { display: grid; grid-template-columns: 32em 1fr 23em; gap: 1.8em; padding: 1.6em 2.4em 0; height: 49.8em; }
   .panel { min-height: 0; }
 
   /* ---------- flowchart ---------- */
@@ -190,6 +191,7 @@
     <div class="status">
       <span class="live" id="live"><i></i><span id="liveText">Connecting</span></span>
       <button class="daybtn" id="dayBtn">Normal day</button>
+      <button class="daybtn" id="fsBtn">Full screen</button>
       <span class="clock" id="clock">--:--</span>
     </div>
   </header>
@@ -486,6 +488,26 @@ goBtn.addEventListener("click", () => {
   else if (tState === "done") resetTimer();
 });
 resetBtn.addEventListener("click", resetTimer);
+
+/* ================= FIT TO SCREEN ================= */
+const stageEl = document.querySelector(".stage");
+function fit() {                      // size the 16:9 board to the visible window (works with browser bars)
+  const w = window.innerWidth, h = window.innerHeight;
+  stageEl.style.setProperty("--u", Math.min(w, h * 16 / 9) + "px");
+}
+fit();
+window.addEventListener("resize", fit);
+window.addEventListener("orientationchange", () => setTimeout(fit, 200));
+if (window.visualViewport) window.visualViewport.addEventListener("resize", fit);
+
+const fsBtn = document.getElementById("fsBtn"), root = document.documentElement;
+if (!root.requestFullscreen && !root.webkitRequestFullscreen) fsBtn.style.display = "none";
+fsBtn.addEventListener("click", () => {
+  const on = document.fullscreenElement || document.webkitFullscreenElement;
+  if (on) (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+  else (root.requestFullscreen || root.webkitRequestFullscreen).call(root);
+});
+document.addEventListener("fullscreenchange", () => { fsBtn.textContent = document.fullscreenElement ? "Exit full screen" : "Full screen"; setTimeout(fit, 100); });
 
 /* ================= GO ================= */
 setUI();
